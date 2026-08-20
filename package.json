@@ -1,0 +1,13 @@
+{
+  "name": "trpg-session-reminder",
+  "version": "1.0.0",
+  "description": "매주 토요일 저녁, 노션 체크리스트를 확인해서 디스코드로 세션 준비 알림을 보내는 스크립트",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,27 @@
+name: 세션 준비 알리미
+
+on:
+  schedule:
+    # 매주 토요일 20:00 KST = UTC 11:00 (UTC 기준으로 요일이 안 바뀝니다)
+    - cron: "0 11 * * 6"
+  workflow_dispatch: {} # 수동으로 "Run workflow" 버튼을 눌러 테스트할 수 있게 해줍니다
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 코드 가져오기
+        uses: actions/checkout@v4
+
+      - name: Node 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 알리미 실행
+        run: node index.js
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}

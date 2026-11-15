@@ -53,11 +53,21 @@ async function main() {
   );
   if (missing.length) throw new Error(`환경 변수 없음: ${missing.join(", ")}`);
 
-  const { results } = await notion(`databases/${QUEUE_DB_ID}/query`, "POST", {
-    filter: { property: "상태", select: { equals: "대기" } },
-    sorts: [{ timestamp: "created_time", direction: "ascending" }],
-    page_size: 20,
-  });
+  let results;
+  try {
+    ({ results } = await notion(`databases/${QUEUE_DB_ID}/query`, "POST", {
+      filter: { property: "상태", select: { equals: "대기" } },
+      sorts: [{ timestamp: "created_time", direction: "ascending" }],
+      page_size: 20,
+    }));
+  } catch (err) {
+    if (err.message.startsWith("Notion 404")) {
+      // 대기열 DB가 노션 연동("세션 알림")에 아직 연결되지 않음. 15분마다 실패 메일이 가지 않도록 경고만 남긴다.
+      console.warn("::warning::대기열 DB에 접근할 수 없음 — 노션에서 DB에 '세션 알림' 연결을 추가해야 함");
+      return;
+    }
+    throw err;
+  }
   console.log(`대기 중 ${results.length}건`);
   if (!results.length) return;
 

@@ -1,0 +1,39 @@
+name: 디스코드 DM 릴레이
+
+# Claude 예약 작업이 디스코드 MCP 서버에 연결하지 못할 때,
+# 봇 토큰으로 디스코드 API를 직접 불러 사용자 본인(nomal6007)에게 DM을 보낸다.
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "보낼 DM 본문 (2000자 넘으면 잘림)"
+        required: true
+        type: string
+
+jobs:
+  send-dm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: DM 보내기
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          MESSAGE: ${{ inputs.message }}
+          RECIPIENT_ID: "784051969068630086"
+        run: |
+          set -euo pipefail
+          api="https://discord.com/api/v10"
+          auth="Authorization: Bot ${DISCORD_BOT_TOKEN}"
+          # DM 채널 열기(이미 있으면 같은 채널을 돌려준다)
+          channel=$(curl -sS --fail-with-body -X POST "$api/users/@me/channels" \
+            -H "$auth" -H "Content-Type: application/json" \
+            -d "$(jq -n --arg id "$RECIPIENT_ID" '{recipient_id: $id}')" | jq -r .id)
+          body=$(jq -n --arg c "${MESSAGE:0:2000}" '{content: $c, allowed_mentions: {parse: []}}')
+          for i in 1 2 3; do
+            if curl -sS --fail-with-body -X POST "$api/channels/$channel/messages" \
+                 -H "$auth" -H "Content-Type: application/json" -d "$body" -o /dev/null; then
+              echo "전송 완료"; exit 0
+            fi
+            sleep 10
+          done
+          echo "전송 실패" >&2; exit 1

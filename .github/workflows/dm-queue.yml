@@ -1,0 +1,43 @@
+name: 디스코드 DM 대기열 발송
+
+# 노션 "디스코드 DM 대기열"에 쌓인 DM을 봇으로 보낸다.
+# Claude 예약 작업이 디스코드 MCP 서버(오라클)에 연결하지 못했을 때의 예비 경로.
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *" # 15분마다 (GitHub 사정으로 몇 분~수십 분 늦을 수 있음)
+  workflow_dispatch: {}
+
+permissions:
+  actions: write # 아래 '예약 유지' 단계용
+  contents: read
+
+concurrency:
+  group: dm-queue
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: 대기 중인 DM 보내기
+        run: node dm-queue.js
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DM_QUEUE_DB_ID: "419358e12df581ba8503ffaff37a77bc"
+          DM_RECIPIENT_ID: "784051969068630086"
+      # 공개 저장소는 60일간 커밋이 없으면 예약 실행이 자동으로 꺼진다.
+      # 매주 일요일 첫 실행 때 이 워크플로를 다시 '켜기' 처리해 꺼지지 않게 한다.
+      - name: 예약 유지
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%u%H)" = "700" ]; then
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/dm-queue.yml/enable"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
